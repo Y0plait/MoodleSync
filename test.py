@@ -2,9 +2,13 @@
 
 import MoodleSyncMain
 from MoodleSyncExtras import ExportParams
+import json
 
-sesh = MoodleSyncMain.MoodleSession(username="a.moulin",
-				    password="yjrM94o3wI",
+with open("ids.json", "r") as ids_file:
+	ids = json.loads(ids_file.read())
+
+sesh = MoodleSyncMain.MoodleSession(username=ids["username"],
+				    password=ids["password"],
 				    baseUrl="https://cr-moodle.leschartreux.com")
 sesh.login()
 with open("out.html", "w") as f:
