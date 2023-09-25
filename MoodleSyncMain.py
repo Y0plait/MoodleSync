@@ -1,3 +1,4 @@
+#!/bin/python3
 """
 
 Filename: main.py
@@ -57,12 +58,12 @@ class MoodleSession():
         #           "password": self.password
         #           ""
         #       }
-        
-        firstGet=req.get(self.baseUrl+"/login/index.php")
+        self.session=req.Session()
+        firstGet=self.session.get(self.baseUrl+"/login/index.php")
         logging.debug(f"First get status code: {firstGet.status_code}")
 
         try:
-            self.connectionCookie={'MoodleSession':firstGet.cookies["MoodleSession"]}
+            self.connectionCookie=firstGet.cookies
         except KeyError:
             raise Exception("The MoodleSession cookie could not be found !")
             logging.critical("Cannot retrieve the MoodleSession cookie !")
@@ -81,7 +82,7 @@ class MoodleSession():
 
             logging.debug(f"Sending POST request to login url with data: {payload} and cookie: {self.connectionCookie}")
 
-            loginPost=req.post(self.baseUrl+"/login/index.php", 
+            loginPost=self.session.post(self.baseUrl+"/login/index.php", 
                               cookies=self.connectionCookie,
                               data=json.dumps(payload))
 
@@ -91,7 +92,7 @@ class MoodleSession():
             else:
                 logging.info("Login successful!")
 
-                myPage=req.get(self.baseUrl+"/my/", 
+                myPage=self.session.get(self.baseUrl+"/my/", 
                                cookies=self.connectionCookie)
                 self.sessKey = myPage.text[myPage.text.find('"sesskey":"')+11:
                                            myPage.text.find('"sesskey":"')+21]
@@ -100,7 +101,8 @@ class MoodleSession():
                 
         
     def getCalendarUrl(self, duration: ExportParams.Duration, events: ExportParams.Events) -> str:
-        #To retrieve a calendar export: make a POST request to the /calendat/export.php endpoint
+        #To retrieve a calendar export url: make a POST request to the /calendat/export.php endpoint
+        
         payload = {
             "sesskey":self.sessKey,
             "_qf__core_calendar_export_form":1,
@@ -109,9 +111,11 @@ class MoodleSession():
             "generateurl":"URL+du+calendrier"
         }
 
-        calendarPost=req.post(self.baseUrl+"/calendar/export.php", 
-                              cookies=self.connectionCookie,
-                              data=json.dumps(payload))
+        logging.debug(f"Sending POST request to /calendar/export.php endpoint with payload: {payload}")
+
+        calendarPost=self.session.post("https://cr-moodle.leschartreux.com/calendar/export.php", 
+                                       cookies=self.connectionCookie,
+                                       data=json.dumps(payload))
 
         #Parsing the url
         generatedUrl=calendarPost.text[calendarPost.text.find("URL du calendrier ")+21:
@@ -119,3 +123,6 @@ class MoodleSession():
 
         return calendarPost.text
 
+    def __del__(self):
+        logging.info("Deleted MoodleSession object.")
+        self.session.close()
