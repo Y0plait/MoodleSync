@@ -62,6 +62,7 @@ class MoodleSession():
         firstGet=self.session.get(self.baseUrl+"/login/index.php")
         logging.debug(f"First get status code: {firstGet.status_code}")
 
+        # Try to parse the cookie:
         try:
             self.connectionCookie=firstGet.cookies
         except KeyError:
@@ -73,36 +74,34 @@ class MoodleSession():
                                      firstGet.text.find(finderString)+len(finderString)+32]
             logging.debug(f"Loggin token parsed: {logintoken}")
             
-            payload = {
-                "anchor": "",
-                "logintoken": logintoken,
-                "username": self.username,
-                "password": self.password
-            }
+        payload = {
+            "anchor": "",
+            "logintoken": logintoken,
+            "username": self.username,
+            "password": self.password
+        }
+        logging.debug(f"Sending POST request to login url with data: {payload} and cookie: {self.connectionCookie}")
 
-            logging.debug(f"Sending POST request to login url with data: {payload} and cookie: {self.connectionCookie}")
-
-            loginPost=self.session.post(self.baseUrl+"/login/index.php", 
-                              cookies=self.connectionCookie,
-                              data=json.dumps(payload))
-
-            if loginPost.status_code != 200:
-                logging.critical(f"Cannot login ! Connection refused: {loginPost.status_code}")
-                raise ConnectionRefusedError("Cannot login ! Connection refused.")
-            else:
-                logging.info("Login successful!")
-
-                myPage=self.session.get(self.baseUrl+"/my/", 
-                               cookies=self.connectionCookie)
-                self.sessKey = myPage.text[myPage.text.find('"sesskey":"')+11:
-                                           myPage.text.find('"sesskey":"')+21]
-
-                logging.debug(f"Sesskey found: {self.sessKey}")
+        loginPost=self.session.post(self.baseUrl+"/login/index.php", 
+                          cookies=self.connectionCookie)
+        #                 data=json.dumps(payload))
+        # We don't need to send the cookies if we use the same session object used in the login process
+        
+        if loginPost.status_code != 200:
+            logging.critical(f"Cannot login ! Connection refused: {loginPost.status_code}")
+            raise ConnectionRefusedError("Cannot login ! Connection refused.")
+        else:
+            logging.info("Login successful!")
+            myPage=self.session.get(self.baseUrl+"/my/", 
+                           cookies=self.connectionCookie)
+            self.sessKey = myPage.text[myPage.text.find('"sesskey":"')+11:
+                                       myPage.text.find('"sesskey":"')+21]
+            logging.debug(f"Sesskey found: {self.sessKey}")
                 
         
     def getCalendarUrl(self, duration: ExportParams.Duration, events: ExportParams.Events) -> str:
         #To retrieve a calendar export url: make a POST request to the /calendat/export.php endpoint
-        
+        #with the following payload:
         payload = {
             "sesskey":self.sessKey,
             "_qf__core_calendar_export_form":1,
@@ -113,11 +112,13 @@ class MoodleSession():
 
         logging.debug(f"Sending POST request to /calendar/export.php endpoint with payload: {payload}")
 
+        # Posting the payload to the server
         calendarPost=self.session.post("https://cr-moodle.leschartreux.com/calendar/export.php", 
-                                       cookies=self.connectionCookie,
-                                       data=json.dumps(payload))
+                                       cookies=self.connectionCookie)
+        #                              data=json.dumps(payload))
+        # We don't need to send the cookies if we use the same session object used in the login process
 
-        #Parsing the url
+        # Parsing the url
         generatedUrl=calendarPost.text[calendarPost.text.find("URL du calendrier ")+21:
                                        calendarPost.text.find("URL du calendrier ")+100]
 

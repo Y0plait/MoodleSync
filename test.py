@@ -14,6 +14,7 @@ sesh.login()
 calendarUrl=sesh.getCalendarUrl(ExportParams.Duration.NEXT_WEEK, ExportParams.Events.ALL)
 print(calendarUrl)
 
+# Debugging
 with open("out.html", "w") as f:
 	
 	f.write(str(calendarUrl))
